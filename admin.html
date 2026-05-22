@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - GAME HUB</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+            }
+        }
+    </script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+        body { background:#0a0e17; color:#fff; padding:20px; }
+        .container { max-width:1100px; margin:0 auto; }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
+        .header h1 { font-size:2rem; font-weight:800; background:linear-gradient(135deg,#ff00ff,#00ffff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .card { background:rgba(14,20,34,0.8); border-radius:20px; padding:25px; margin-bottom:20px; }
+        table { width:100%; border-collapse:collapse; }
+        th,td { padding:12px; border-bottom:1px solid #333; text-align:left; }
+        th { color:#8899bb; }
+        .password-cell { font-family:monospace; word-break:break-all; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; }
+        .logout-btn { padding:10px 24px; background:#ff6b6b; border:none; border-radius:30px; color:#fff; font-weight:700; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👑 Admin Panel</h1>
+            <button class="logout-btn" id="logoutBtn">Keluar</button>
+        </div>
+        <div class="card">
+            <h2 style="color:#00ffff; margin-bottom:15px;">📋 Daftar User</h2>
+            <table>
+                <thead>
+                    <tr><th>Email</th><th>Username</th><th>Password (Plaintext)</th><th>Dibuat</th></tr>
+                </thead>
+                <tbody id="userTableBody"></tbody>
+            </table>
+            <div id="emptyState" style="text-align:center; color:#667799; padding:40px 0; display:none;">Belum ada user.</div>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
+        import { getFirestore, collection, getDocs, query, orderBy } from 'firebase/firestore';
+
+        const firebaseConfig = {
+            apiKey: 'AIzaSyB1uODnjvbrLlaun1pG7DYbztqmtUUM7s8',
+            authDomain: 'invest-7de15.firebaseapp.com',
+            projectId: 'invest-7de15',
+            storageBucket: 'invest-7de15.firebasestorage.app',
+            messagingSenderId: '161851077496',
+            appId: '1:161851077496:web:84559ac26f6c8b6923ce8d'
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userTableBody = document.getElementById('userTableBody');
+        const emptyState = document.getElementById('emptyState');
+
+        async function loadUsers() {
+            try {
+                const usersRef = collection(db, 'users');
+                const q = query(usersRef, orderBy('createdAt', 'desc'));
+                const snapshot = await getDocs(q);
+                userTableBody.innerHTML = '';
+                if (snapshot.empty) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                emptyState.style.display = 'none';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${data.email || '-'}</td>
+                        <td>${data.username || '-'}</td>
+                        <td><span class="password-cell">${data.passwordPlain || '-'}</span></td>
+                        <td>${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '-'}</td>
+                    `;
+                    userTableBody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('❌ Gagal load user:', error);
+                if (error.code === 'permission-denied') {
+                    alert('Akses ditolak. Pastikan aturan Firestore sudah mengizinkan admin membaca koleksi users.');
+                } else {
+                    alert('Gagal memuat data: ' + error.message);
+                }
+            }
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                if (user.email !== 'akunkopexx11@gmail.com') {
+                    await signOut(auth);
+                    alert('Anda bukan admin.');
+                    window.location.href = 'index.html';
+                } else {
+                    console.log('✅ Login sebagai admin:', user.email);
+                    loadUsers();
+                }
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+        logoutBtn.addEventListener('click', async () => {
+            await signOut(auth);
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
